@@ -2,6 +2,10 @@
 
 Etherpad/Airtable Integration
 
+## Requirements
+
+MongoDB
+
 ## Installation
 
 ```bash
