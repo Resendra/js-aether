@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { get, isEmpty } from 'lodash';
 import { forkJoin, of } from 'rxjs';
 import { finalize, switchMap, map, tap } from 'rxjs/operators';
@@ -65,7 +65,7 @@ export class CoreService {
         }, {});
     }
 
-    @Cron('30 * * * * *')
+    @Cron(CronExpression.EVERY_10_SECONDS)
     scanAirtableForUpdates() {
         if (!this.airtableLock) {
             this.airtableLock = true;
@@ -108,7 +108,7 @@ export class CoreService {
 
     }
 
-    @Cron('30 * * * * *')
+    @Cron(CronExpression.EVERY_MINUTE)
     scanEtherpadForUpdates() {
         if (!this.etherpadLock) {
             this.etherpadLock = true;
