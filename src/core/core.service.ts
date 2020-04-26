@@ -6,6 +6,8 @@ import { finalize, switchMap, map, tap } from 'rxjs/operators';
 import { AirtableIntegrationService } from '../airtable-integration';
 import { EtherpadIntegrationService } from '../etherpad-integration';
 import { AirtableAuthor } from '../shared';
+import { AirtableRecord } from 'src/airtable-integration/airtable-record.model';
+import { environment } from 'src/environments/environment';
 
 @Injectable()
 export class CoreService {
@@ -71,12 +73,10 @@ export class CoreService {
             this.airtableLock = true;
             this.airtableService
                 .findFromTable('Papiers originaux ou traduits', {
-                    fields: ['Rédaction']
+                    fields: ['Rédaction', 'Corps_de_texte']
                 })
                 .pipe(
-                    switchMap(articles => {
-                        this.logger.log('Retrieved articles for update...');
-
+                    switchMap(records => {
                         // const authorChangesByArticle = this.getAuthorChangesByArticle(this.oldEntries, articles);
 
                         // const observables = authorChanges.reduce((acc, {added, removed}) => {
@@ -90,8 +90,9 @@ export class CoreService {
                         //     }
                         // }, []);
 
-                        const observables = articles.map(article => {
-                            return this.etherpadService.getOrCreatePadFromArticleId(article.id);
+                        const observables = records.map(record => {
+                            const text = get(record, ['fields', 'Corps_de_texte'], '');
+                            return this.etherpadService.getOrCreatePadFromArticleId(record.id, 'article', text);
                         });
 
                         return isEmpty(observables) ? of([]) : forkJoin(observables);
@@ -122,17 +123,22 @@ export class CoreService {
 
                             return this.etherpadService.createSession(pad.groupID, authorID)
                                 .pipe(
-                                    switchMap(_ => {
-                                        return this.etherpadService.getTextFromPad(padId);
+                                    switchMap(_ => this.etherpadService.getTextFromPad(padId)),
+                                    switchMap(text => {
+                                        const record: AirtableRecord = {
+                                            id: pad.articleId,
+                                            fields: {
+                                                "Corps_de_texte": text,
+                                                "Pad": `http://${environment.ETHERPAD_HOST}:${environment.ETHERPAD_PORT}/p/${pad.groupID}$${pad.name}`
+                                            }
+                                        }
+
+                                        return this.airtableService.updateTable('Papiers originaux ou traduits', [record]);
                                     }),
-                                    map(text => ({ articleId: pad.articleId, text }))
                                 );
                         });
 
                         return isEmpty(observables) ? of([]) : forkJoin(observables);
-                    }),
-                    tap(results => {
-                        console.log(results);
                     }),
                     finalize(() => this.etherpadLock = false)
                 )

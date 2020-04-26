@@ -81,8 +81,8 @@ export class EtherpadIntegrationService {
         });
     }
 
-    private createPadFromArticleId(articleId: string): Observable<Pad> {
-        const createdPad = new this.padModel({ articleId, name: "article", created: false });
+    private createPadFromArticleId(articleId: string, name: string = 'article', text: string = ''): Observable<Pad> {
+        const createdPad = new this.padModel({ articleId, name, created: false });
         return from(createdPad.save())
             .pipe(
                 switchMap(pad => {
@@ -92,7 +92,7 @@ export class EtherpadIntegrationService {
                     pad.groupID = groupID;
 
                     const groupPad$ = new Observable(observer => {
-                        const args = { groupID, padName: pad.name };
+                        const args = { groupID, padName: pad.name, text };
                         this.api.createGroupPad(args, (error, data) => {
                             if (error) {
                                 observer.error(error);
@@ -113,12 +113,12 @@ export class EtherpadIntegrationService {
             );
     }
 
-    public getOrCreatePadFromArticleId(articleId: string): Observable<Pad> {
+    public getOrCreatePadFromArticleId(articleId: string, name?: string, text?: string): Observable<Pad> {
         return from(this.padModel.findOne({ articleId }).exec())
             .pipe(
                 switchMap(pad => {
                     if (!pad) {
-                        return this.createPadFromArticleId(articleId);
+                        return this.createPadFromArticleId(articleId, name, text);
                     } else {
                         return of(pad);
                     }
